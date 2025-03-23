@@ -43,12 +43,12 @@ def process_worker(files, keywords, results_dict, counts_dict):
 def run_threading(files, keywords):
     """Запускає багатопотокову версію."""
     start_time = time.time()
-    num_threads = min(4, len(files))  # Максимум 4 потоки
+    num_threads = len(files)
     results_queue = Queue()
     counts_queue = Queue()
     threads = []
     
-    chunk_size = len(files) // num_threads
+    chunk_size = len(files) // num_threads if num_threads > 0 else 1
     for i in range(num_threads):
         chunk = files[i * chunk_size: (i + 1) * chunk_size] if i < num_threads - 1 else files[i * chunk_size:]
         thread = threading.Thread(target=thread_worker, args=(chunk, keywords, results_queue, counts_queue))
@@ -76,13 +76,13 @@ def run_threading(files, keywords):
 def run_multiprocessing(files, keywords):
     """Запускає багатопроцесорну версію."""
     start_time = time.time()
-    num_processes = min(4, len(files))  # Максимум 4 процеси
+    num_processes = len(files)
     manager = Manager()
     results_dict = manager.dict({word: [] for word in keywords})
     counts_dict = manager.dict({word: 0 for word in keywords})
     processes = []
     
-    chunk_size = len(files) // num_processes
+    chunk_size = len(files) // num_processes if num_processes > 0 else 1
     for i in range(num_processes):
         chunk = files[i * chunk_size: (i + 1) * chunk_size] if i < num_processes - 1 else files[i * chunk_size:]
         process = multiprocessing.Process(target=process_worker, args=(chunk, keywords, results_dict, counts_dict))
@@ -97,7 +97,7 @@ def run_multiprocessing(files, keywords):
 
 
 if __name__ == "__main__":
-    folder_path = "txtfiles"  # Папка з файлами
+    folder_path = "text_files"  # Папка з файлами
     keywords = ["Python", "error", "thread", "process"]  # Ключові слова
     
     all_files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith(".txt")]
