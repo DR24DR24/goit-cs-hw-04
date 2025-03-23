@@ -11,9 +11,9 @@ def search_in_file(file_path, keywords):
     word_counts = {word: 0 for word in keywords}
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+            content = file.read().lower()  
             for word in keywords:
-                count = content.count(word)
+                count = content.count(word.lower()) 
                 if count > 0:
                     found_words[word].append(file_path)
                     word_counts[word] = count
@@ -22,22 +22,24 @@ def search_in_file(file_path, keywords):
     return found_words, word_counts
 
 
-def thread_worker(files, keywords, results_queue, counts_queue):
+def thread_worker(file, keywords, results_queue, counts_queue):
     """Потоковий обробник файлів."""
-    for file in files:
-        result, counts = search_in_file(file, keywords)
-        results_queue.put(result)
-        counts_queue.put(counts)
+   
+    result, counts = search_in_file(file, keywords)
+    results_queue.put(result)
+    counts_queue.put(counts)
 
 
-def process_worker(files, keywords, results_dict, counts_dict):
+def process_worker(file, keywords, results_dict, counts_dict):
     """Процесний обробник файлів."""
-    for file in files:
-        result, counts = search_in_file(file, keywords)
-        for key, value in result.items():
-            results_dict[key].extend(value)
-        for key, value in counts.items():
-            counts_dict[key] += value
+    
+    result, counts = search_in_file(file, keywords)
+    for key, value in result.items():
+        temp_list = results_dict[key]  # Получаем текущий список
+        temp_list.extend(value)        # Добавляем элементы
+        results_dict[key] = temp_list  # Сохраняем обратно
+    for key, value in counts.items():
+        counts_dict[key] += value
 
 
 def run_threading(files, keywords):
@@ -48,10 +50,9 @@ def run_threading(files, keywords):
     counts_queue = Queue()
     threads = []
     
-    chunk_size = len(files) // num_threads if num_threads > 0 else 1
+
     for i in range(num_threads):
-        chunk = files[i * chunk_size: (i + 1) * chunk_size] if i < num_threads - 1 else files[i * chunk_size:]
-        thread = threading.Thread(target=thread_worker, args=(chunk, keywords, results_queue, counts_queue))
+        thread = threading.Thread(target=thread_worker, args=(files[i], keywords, results_queue, counts_queue))
         threads.append(thread)
         thread.start()
 
@@ -82,10 +83,8 @@ def run_multiprocessing(files, keywords):
     counts_dict = manager.dict({word: 0 for word in keywords})
     processes = []
     
-    chunk_size = len(files) // num_processes if num_processes > 0 else 1
     for i in range(num_processes):
-        chunk = files[i * chunk_size: (i + 1) * chunk_size] if i < num_processes - 1 else files[i * chunk_size:]
-        process = multiprocessing.Process(target=process_worker, args=(chunk, keywords, results_dict, counts_dict))
+        process = multiprocessing.Process(target=process_worker, args=(files[i], keywords, results_dict, counts_dict))
         processes.append(process)
         process.start()
 
@@ -97,8 +96,8 @@ def run_multiprocessing(files, keywords):
 
 
 if __name__ == "__main__":
-    folder_path = "text_files"  # Папка з файлами
-    keywords = ["Python", "error", "thread", "process"]  # Ключові слова
+    folder_path = "txtfiles"  # Папка з файлами
+    keywords = ["python", "error", "thread", "process"]  # Ключові слова
     
     all_files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith(".txt")]
     
